@@ -14,3 +14,9 @@ pub struct Cli {
     #[arg(short, long, env = "GREENBONE_FEED_KEY_PATH", default_value_t = String::from("/etc/gvm/greenbone-enterprise-feed-key"))]
     pub key_path: String,
 }
+
+impl Default for Cli {
+    fn default() -> Cli {
+        Cli::parse()
+    }
+}

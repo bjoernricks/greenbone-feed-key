@@ -1,5 +1,3 @@
-use clap::Parser;
-
 use crate::{
     app::{GlobalState, create_app},
     cli::Cli,
@@ -13,7 +11,7 @@ mod openapi;
 
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    let cli = Cli::default();
 
     let state = GlobalState::new(cli.key_path.into());
     let app = create_app(state);
