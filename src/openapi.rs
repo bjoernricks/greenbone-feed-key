@@ -1,0 +1,28 @@
+use axum::{Router, response::Redirect, routing::get};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::app::AppRouter;
+
+#[derive(OpenApi)]
+#[openapi(
+    info(description = "Greenbone Feed Key API", title = "Greenbone Feed Key"),
+    nest(
+        (path = "/health", api = crate::health::HealthApi),
+        (path = "/key", api = crate::key::KeyApi),
+    )
+)]
+struct ApiDoc;
+
+#[utoipa::path(
+    get,
+    path = "/api-docs/openapi.json",
+    responses(
+        (status = 200, description = "JSON file", body = ())
+    )
+)]
+pub fn routes() -> AppRouter {
+    Router::new()
+        .route("/", get(|| async { Redirect::permanent("/swagger-ui") }))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+}

@@ -1,0 +1,21 @@
+[package]
+name = "greenbone-feed-key"
+version = "0.1.0"
+edition = "2024"
+description = "A Service for Uploading a Greenbone Feed Key"
+publish = false
+
+[dependencies]
+axum = { version = "0.8.8", features = ["http2"] }
+clap = { version = "4.5.54", features = ["derive", "env"] }
+tokio = { version = "1.49.0", features = ["full"] }
+tokio-stream = "0.1.18"
+tokio-util = { version = "0.7.18", features = ["io"] }
+tower = "0.5.2"
+tower-http = { version = "0.6.8", features = [
+  "compression-full",
+  "decompression-full",
+  "fs",
+] }
+utoipa = { version = "5.4.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }

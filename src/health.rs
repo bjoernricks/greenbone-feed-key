@@ -1,0 +1,30 @@
+use axum::{Router, routing::get};
+use utoipa::OpenApi;
+
+use crate::app::AppRouter;
+
+const HEALTH_TAG: &str = "Health";
+
+#[derive(OpenApi)]
+#[openapi(
+    info(description = "Health check endpoint", title = "Health API"),
+    tags((name = HEALTH_TAG, description = "Health check operations")),
+    paths(health_check)
+)]
+pub struct HealthApi;
+
+#[utoipa::path(
+  get,
+  path = "",
+  responses(
+    (status = 200, description = "Health check OK", body = String)
+  ),
+  tag = HEALTH_TAG,
+)]
+async fn health_check() -> &'static str {
+    "OK server is healthy"
+}
+
+pub fn routes() -> AppRouter {
+    Router::new().route("/", get(health_check))
+}
