@@ -9,6 +9,6 @@ mod openapi;
 #[tokio::main]
 async fn main() {
     let cli = Cli::default();
-    let app = App::new(cli.key_path.into());
+    let app = App::new(cli.key_path.into(), cli.log);
     app.serve(&cli.server, cli.port).await.unwrap();
 }
