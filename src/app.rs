@@ -1,6 +1,9 @@
 use axum::{Router, http::StatusCode, response::IntoResponse};
+use axum_server::tls_rustls::RustlsConfig;
 use std::{
+    net::SocketAddr,
     path::{self, PathBuf},
+    str::FromStr,
     sync::Arc,
 };
 use tower::ServiceBuilder;
@@ -52,11 +55,41 @@ impl App {
             .fallback(handler_404)
     }
 
-    pub async fn serve(self, server: &str, port: u16) -> Result<(), std::io::Error> {
+    async fn serve_http(self, server: &str, port: u16) -> Result<(), std::io::Error> {
         let address = format!("{}:{}", server, port);
         let listener = tokio::net::TcpListener::bind(address).await.unwrap();
         tracing::info!("Listening on http://{}", listener.local_addr().unwrap());
         axum::serve(listener, self.router()).await
+    }
+
+    async fn serve_tls(
+        self,
+        server: &str,
+        port: u16,
+        tls_cert: String,
+        tls_key: String,
+    ) -> Result<(), std::io::Error> {
+        let address = format!("{}:{}", server, port);
+        let config = RustlsConfig::from_pem_file(tls_cert, tls_key).await?;
+        tracing::info!("Listening on https://{}", address);
+        axum_server::bind_rustls(SocketAddr::from_str(&address).unwrap(), config)
+            .serve(self.router().into_make_service())
+            .await
+    }
+
+    pub async fn serve(
+        self,
+        server: &str,
+        port: u16,
+        tls_cert: Option<String>,
+        tls_key: Option<String>,
+    ) -> Result<(), std::io::Error> {
+        if tls_cert.is_none() || tls_key.is_none() {
+            self.serve_http(server, port).await
+        } else {
+            self.serve_tls(server, port, tls_cert.unwrap(), tls_key.unwrap())
+                .await
+        }
     }
 }
 

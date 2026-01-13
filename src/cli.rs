@@ -18,6 +18,14 @@ pub struct Cli {
     /// Tracing log level directive
     #[arg(short, long, env = "GREENBONE_FEED_KEY_LOG", default_value_t = format!("{}=info", env!("CARGO_CRATE_NAME")))]
     pub log: String,
+
+    /// Path to TLS certificate file (enables HTTPS)
+    #[arg(long, env = "GREENBONE_FEED_KEY_TLS_CERT", requires = "tls_key")]
+    pub tls_cert: Option<String>,
+
+    /// Path to TLS key file (enables HTTPS)
+    #[arg(long, env = "GREENBONE_FEED_KEY_TLS_KEY", requires = "tls_cert")]
+    pub tls_key: Option<String>,
 }
 
 impl Default for Cli {
