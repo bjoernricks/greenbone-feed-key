@@ -61,9 +61,10 @@ impl App {
 
     async fn serve_http(self, server: &str, port: u16) -> Result<(), std::io::Error> {
         let address = format!("{}:{}", server, port);
-        let listener = tokio::net::TcpListener::bind(address).await.unwrap();
-        tracing::info!("Listening on http://{}", listener.local_addr().unwrap());
-        axum::serve(listener, self.router()).await
+        tracing::info!("Listening on http://{}", address);
+        axum_server::bind(SocketAddr::from_str(&address).unwrap())
+            .serve(self.router().into_make_service())
+            .await
     }
 
     async fn serve_tls(
