@@ -18,9 +18,4 @@ Service for Uploading a Greenbone Feed Key
 
 ## TLS
 
-A self-signed TLS certificate for testing purposes can be generated with the
-following command:
-
-```sh
-openssl req -newkey rsa:4096 -nodes -keyout private-key.pem -x509 -days 365 -out public-certificate.pem
-```
+See [TLS documentation](./certs/README.md) for more details

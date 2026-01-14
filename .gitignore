@@ -15,6 +15,6 @@ target
 
 .vscode/
 
-# self-signed certificates
-private-key.pem
-public-certificate.pem
+# TLS certificates
+*.pem
+*.srl
