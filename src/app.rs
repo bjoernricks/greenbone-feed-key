@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use axum::{Router, http::StatusCode, response::IntoResponse};
-use axum_server::tls_rustls::RustlsConfig;
+use axum_server::{Handle, tls_rustls::RustlsConfig};
 use rustls::{ServerConfig, server::WebPkiClientVerifier};
 use std::{
     error::Error,
@@ -11,6 +11,7 @@ use std::{
     path::{self, PathBuf},
     str::FromStr,
     sync::Arc,
+    time::Duration,
 };
 use thiserror::Error;
 use tower::ServiceBuilder;
@@ -20,6 +21,28 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::certs::{create_client_root_cert_store, load_certificate, load_private_key};
+
+use tokio::signal::unix::{SignalKind, signal};
+
+fn shutdown(handle: &Handle<SocketAddr>) {
+    handle.graceful_shutdown(Some(Duration::from_secs(5)));
+}
+
+async fn shutdown_signal(handle: Handle<SocketAddr>) {
+    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to create SIGTERM handler");
+    let mut sigint = signal(SignalKind::interrupt()).expect("Failed to create SIGINT handler");
+
+    tokio::select! {
+        _ = sigint.recv() => {
+            tracing::info!("SIGINT received, shutting down");
+            shutdown(&handle);
+        },
+        _ = sigterm.recv() => {
+            tracing::info!("SIGTERM received, shutting down");
+            shutdown(&handle);
+        },
+    }
+}
 
 #[derive(Clone)]
 pub struct GlobalState {
@@ -78,15 +101,21 @@ impl App {
             .fallback(handler_404)
     }
 
-    async fn serve_http(self, address: SocketAddr) -> Result<(), std::io::Error> {
+    async fn serve_http(
+        self,
+        handle: Handle<SocketAddr>,
+        address: SocketAddr,
+    ) -> Result<(), std::io::Error> {
         tracing::info!("Listening on http://{}", address);
         axum_server::bind(address)
+            .handle(handle)
             .serve(self.router().into_make_service())
             .await
     }
 
     async fn serve_tls(
         self,
+        handle: Handle<SocketAddr>,
         address: SocketAddr,
         tls_server_cert: &str,
         tls_server_key: &str,
@@ -94,12 +123,14 @@ impl App {
         let config = RustlsConfig::from_pem_file(tls_server_cert, tls_server_key).await?;
         tracing::info!("Listening on https://{}", address);
         axum_server::bind_rustls(address, config)
+            .handle(handle)
             .serve(self.router().into_make_service())
             .await
     }
 
     async fn server_mtls(
         self,
+        handle: Handle<SocketAddr>,
         address: SocketAddr,
         tls_server_cert: &str,
         tls_server_key: &str,
@@ -129,6 +160,7 @@ impl App {
         tracing::info!("Listening on https://{}", address);
 
         axum_server::bind_rustls(address, config)
+            .handle(handle)
             .serve(self.router().into_make_service())
             .await
             .map_err(|e| e.into())
@@ -146,6 +178,8 @@ impl App {
         tracing::debug!(server = ?server, port = ?port, "parsing server address {}", address);
         let socket_address =
             SocketAddr::from_str(&address).map_err(|_| AppError::InvalidAddress(address))?;
+        let handle = Handle::new();
+        tokio::spawn(shutdown_signal(handle.clone()));
 
         if tls_server_cert.is_some() && tls_server_key.is_some() {
             let tls_server_cert = tls_server_cert.unwrap();
@@ -153,6 +187,7 @@ impl App {
             match tls_client_certs {
                 Some(client_cert) => self
                     .server_mtls(
+                        handle,
                         socket_address,
                         &tls_server_cert,
                         &tls_server_key,
@@ -161,12 +196,14 @@ impl App {
                     .await
                     .map_err(|e| e.into()),
                 None => self
-                    .serve_tls(socket_address, &tls_server_cert, &tls_server_key)
+                    .serve_tls(handle, socket_address, &tls_server_cert, &tls_server_key)
                     .await
                     .map_err(|e| e.into()),
             }
         } else {
-            self.serve_http(socket_address).await.map_err(|e| e.into())
+            self.serve_http(handle, socket_address)
+                .await
+                .map_err(|e| e.into())
         }
     }
 }
