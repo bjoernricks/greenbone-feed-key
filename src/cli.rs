@@ -58,3 +58,28 @@ impl Default for Cli {
         Cli::parse()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn try_parse_from(args: Vec<&str>) -> Cli {
+        Cli::try_parse_from(["test"].into_iter().chain(args.into_iter()))
+            .expect("unable to parse args")
+    }
+
+    #[test]
+    fn test_default_cli() {
+        let cli = try_parse_from(vec![]);
+
+        assert_eq!(cli.port, 3000);
+        assert_eq!(cli.server, "127.0.0.1");
+        assert_eq!(cli.upload_limit, None);
+        assert_eq!(cli.feed_key_path, "/etc/gvm/greenbone-enterprise-feed-key");
+        assert_eq!(cli.log, format!("{}=info", env!("CARGO_CRATE_NAME")));
+        assert_eq!(cli.tls_server_cert, None);
+        assert_eq!(cli.tls_server_key, None);
+        assert_eq!(cli.tls_client_certs, None);
+        assert_eq!(cli.upload_limit, None);
+    }
+}
